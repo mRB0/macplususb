@@ -469,9 +469,25 @@ static void run(void) {
     uint8_t dial_position = (PINB >> DialA) & 0x01;
     Direction dial_direction = DirectionCCW;
 
-    wdt_reset();
-    wdt_enable(WDTO_1S);
+    // wdt_reset();
+    // wdt_enable(WDTO_1S);
     
+
+    // DEBUG debug
+    static uint16_t keys[] = { KEY_B, 0 };
+
+    for(uint32_t i = 0; i < 1200000; i++);
+
+    for(;;) {
+        for(int buttons = 0; buttons < 4; buttons++) {
+            for(uint32_t i = 0; i < 600000; i++);
+            // press_keys(keys);
+            // release_keys(keys);
+            usb_mouse_send(buttons ? 0x02 : 0x00);
+        }
+    }
+
+
 	for(;;) {        
         uint8_t timer0_fired = 0;
         uint8_t raw_switches_state = 0x7f;
