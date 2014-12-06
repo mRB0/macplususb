@@ -69,7 +69,7 @@
 #define MOUSE_ENDPOINT          2
 #define KEYBOARD_ENDPOINT       3
 #define MEDIA_ENDPOINT          4
-#define MOUSE_SIZE              8
+#define MOUSE_SIZE              4
 #define MOUSE_BUFFER            EP_DOUBLE_BUFFER
 #define KEYBOARD_SIZE           8
 #define KEYBOARD_BUFFER         EP_DOUBLE_BUFFER
@@ -78,7 +78,7 @@
 
 static const uint8_t PROGMEM endpoint_config_table[] = {
     0,
-    1, EP_TYPE_INTERRUPT_IN,  EP_SIZE(MOUSE_SIZE) | MOUSE_BUFFER,
+    1, EP_TYPE_INTERRUPT_IN,  EP_SIZE(8) | MOUSE_BUFFER,
     1, EP_TYPE_INTERRUPT_IN,  EP_SIZE(KEYBOARD_SIZE) | KEYBOARD_BUFFER,
     1, EP_TYPE_INTERRUPT_IN,  EP_SIZE(MEDIA_SIZE) | MEDIA_BUFFER,
 };
@@ -107,7 +107,7 @@ static uint8_t const PROGMEM device_descriptor[] = {
     ENDPOINT0_SIZE,                         // bMaxPacketSize0
     LSB(VENDOR_ID), MSB(VENDOR_ID),         // idVendor
     LSB(PRODUCT_ID), MSB(PRODUCT_ID),       // idProduct
-    0x00, 0x12,                             // bcdDevice
+    0x00, 0x13,                             // bcdDevice
     1,                                      // iManufacturer
     2,                                      // iProduct
     0,                                      // iSerialNumber
@@ -175,42 +175,32 @@ static uint8_t const PROGMEM media_hid_report_desc[] = {
 };
 
 static uint8_t const PROGMEM mouse_hid_report_desc[] = {
-    0x05, 0x01,          // Usage Page (Generic Desktop),
-    0x09, 0x02,          // Usage (Mouse),
-    0xA1, 0x01,          // Collection (Application),
-
-    0x09, 0x01,          //   Usage (Pointer),
-    0xA1, 0x00,          //   Collection (Physical),
-
-    0x05, 0x09,          //     Usage Page (buttons),
-    0x19, 0x01,          //     Usage Minimum (1),
-    0x29, 0x03,          //     Usage Maximum (3),
-    0x15, 0x00,          //     Logical Minimum (0),
-    0x25, 0x01,          //     Logical Maximum (1),
-    0x95, 0x03,          //     Report count (3),
-    0x75, 0x01,          //     Report size (1),
-    0x81, 0x02,          //     Input (data, variable, absolute): 3 button bits,
-
-    0x95, 0x01,          //     Report count (1),
-    0x75, 0x05,          //     Report size (5),
-    0x81, 0x01,          //     Input (constant): padding,
-
-    0x05, 0x01,          //     Usage page (generic desktop),
-    0x09, 0x30,          //     Usage (X),
-    0x09, 0x31,          //     Usage (Y),
-    0x15, 0x81,          //     Logical minimum (-127),
-    0x25, 0x7f,          //     Logical maximum (127),
-    0x75, 0x08,          //     Report size (8),
-    0x95, 0x02,          //     Report count (2),
-    0x81, 0x06,          //     Input (data, variable, relative): 2 position bytes (x & y),
-
-    0x95, 0x05,          //     Report count (5),
-    0x75, 0x08,          //     Report size (8),
-    0x81, 0x01,          //     Input (constant): padding,
-
-    0xc0,                //   End collection
-    
-    0xc0,                // End collection
+    0x05, 0x01,         // Usage Page (Generic Desktop)
+    0x09, 0x02,         // Usage (Mouse)
+    0xA1, 0x01,         // Collection (Application)
+    0x05, 0x09,         //   Usage Page (Button)
+    0x19, 0x01,         //   Usage Minimum (Button #1)
+    0x29, 0x03,         //   Usage Maximum (Button #3)
+    0x15, 0x00,         //   Logical Minimum (0)
+    0x25, 0x01,         //   Logical Maximum (1)
+    0x95, 0x03,         //   Report Count (3)
+    0x75, 0x01,         //   Report Size (1)
+    0x81, 0x02,         //   Input (Data, Variable, Absolute)
+    0x95, 0x01,         //   Report Count (1)
+    0x75, 0x05,         //   Report Size (5)
+    0x81, 0x03,         //   Input (Constant)
+    0x05, 0x01,         //   Usage Page (Generic Desktop)
+    0x09, 0x30,         //   Usage (X)
+    0x09, 0x31,         //   Usage (Y)
+    0x15, 0x81,         //   Logical Minimum (-127)
+    0x25, 0x7F,         //   Logical Maximum (127)
+    0x75, 0x08,         //   Report Size (8),
+    0x95, 0x02,         //   Report Count (2),
+    0x81, 0x06,         //   Input (Data, Variable, Relative)
+    0x09, 0x38,         //   Usage (Wheel)
+    0x95, 0x01,         //   Report Count (1),
+    0x81, 0x06,         //   Input (Data, Variable, Relative)
+    0xC0                // End Collection
 };
 
 
@@ -515,7 +505,7 @@ int8_t usb_media_send(void)
     }
     send_media_key_data();
     UEINTX = 0x3A;
-    keyboard_idle_count = 0;
+    media_idle_count = 0;
     SREG = intr_state;
     return 0;
 }
@@ -545,7 +535,7 @@ int8_t usb_mouse_send(uint8_t buttons)
     }
     send_mouse_data(1);
     UEINTX = 0x3A;
-    keyboard_idle_count = 0;
+    mouse_idle_count = 0;
     SREG = intr_state;
     return 0;
 }
@@ -586,9 +576,7 @@ static void send_mouse_data(int req) {
         UEDATX = 0;
     }
 
-    for(i = 0; i < 5; i++) {
-        UEDATX = 0;
-    }
+    UEDATX = 0; // wheel
 
 
 }
