@@ -476,14 +476,14 @@ static void run(void) {
     // DEBUG debug
     static uint16_t keys[] = { KEY_B, 0 };
 
-    for(uint32_t i = 0; i < 1200000; i++);
+    _delay_ms(1000);
 
     for(;;) {
         for(int buttons = 0; buttons < 4; buttons++) {
-            for(uint32_t i = 0; i < 600000; i++);
+            _delay_ms(500);
             // press_keys(keys);
             // release_keys(keys);
-            usb_mouse_send(buttons ? 0x02 : 0x00);
+            usb_mouse_send(buttons ? 0x01 : 0x00);
         }
     }
 
