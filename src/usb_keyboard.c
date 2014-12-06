@@ -65,8 +65,12 @@
 
 #define KEYBOARD_INTERFACE      0
 #define MEDIA_INTERFACE         1
+#define MOUSE_INTERFACE         2
+#define MOUSE_ENDPOINT          2
 #define KEYBOARD_ENDPOINT       3
 #define MEDIA_ENDPOINT          4
+#define MOUSE_SIZE              8
+#define MOUSE_BUFFER            EP_DOUBLE_BUFFER
 #define KEYBOARD_SIZE           8
 #define KEYBOARD_BUFFER         EP_DOUBLE_BUFFER
 #define MEDIA_SIZE              8
@@ -74,7 +78,7 @@
 
 static const uint8_t PROGMEM endpoint_config_table[] = {
     0,
-    0,
+    1, EP_TYPE_INTERRUPT_IN,  EP_SIZE(MOUSE_SIZE) | MOUSE_BUFFER,
     1, EP_TYPE_INTERRUPT_IN,  EP_SIZE(KEYBOARD_SIZE) | KEYBOARD_BUFFER,
     1, EP_TYPE_INTERRUPT_IN,  EP_SIZE(MEDIA_SIZE) | MEDIA_BUFFER,
 };
@@ -157,7 +161,7 @@ static uint8_t const PROGMEM media_hid_report_desc[] = {
     0x05, 0x0c,          // Usage Page (Generic Desktop),
     0x09, 0x01,          // Usage (Keyboard),
     0xA1, 0x01,          // Collection (Application),
-        
+    
     0x95, 0x04,          //   Report Count (4),
     0x75, 0x10,          //   Report Size (16),
     0x15, 0x00,          //   Logical Minimum (0),
@@ -170,20 +174,62 @@ static uint8_t const PROGMEM media_hid_report_desc[] = {
     0xc0                 // End Collection
 };
 
-#define CONFIG1_DESC_SIZE        (9+9+9+7+9+9+7)
+static uint8_t const PROGMEM mouse_hid_report_desc[] = {
+    0x05, 0x01,          // Usage Page (Generic Desktop),
+    0x09, 0x02,          // Usage (Mouse),
+    0xA1, 0x01,          // Collection (Application),
+
+    0x09, 0x01,          //   Usage (Pointer),
+    0xA1, 0x00,          //   Collection (Physical),
+
+    0x05, 0x09,          //     Usage Page (buttons),
+    0x19, 0x01,          //     Usage Minimum (1),
+    0x29, 0x03,          //     Usage Maximum (3),
+    0x15, 0x00,          //     Logical Minimum (0),
+    0x25, 0x01,          //     Logical Maximum (1),
+    0x95, 0x03,          //     Report count (3),
+    0x75, 0x01,          //     Report size (1),
+    0x81, 0x02,          //     Input (data, variable, absolute): 3 button bits,
+
+    0x95, 0x01,          //     Report count (1),
+    0x75, 0x05,          //     Report size (5),
+    0x81, 0x01,          //     Input (constant): padding,
+
+    0x05, 0x01,          //     Usage page (generic desktop),
+    0x09, 0x30,          //     Usage (X),
+    0x09, 0x31,          //     Usage (Y),
+    0x15, 0x81,          //     Logical minimum (-127),
+    0x25, 0x7f,          //     Logical maximum (127),
+    0x75, 0x08,          //     Report size (8),
+    0x95, 0x02,          //     Report count (2),
+    0x81, 0x06,          //     Input (data, variable, relative): 2 position bytes (x & y),
+
+    0x95, 0x05,          //     Report count (5),
+    0x75, 0x08,          //     Report size (8),
+    0x81, 0x01,          //     Input (constant): padding,
+
+    0xc0,                //   End collection
+    
+    0xc0,                // End collection
+};
+
+
+#define CONFIG1_DESC_SIZE        (9+ 9+9+7+ 9+9+7+ 9+9+7)
 #define KEYBOARD_HID_DESC_OFFSET (9+9)
 #define MEDIA_HID_DESC_OFFSET    (9+9+9+7+9)
+#define MOUSE_HID_DESC_OFFSET    (9+9+9+7+9+9+7+9)
 static uint8_t const PROGMEM config1_descriptor[CONFIG1_DESC_SIZE] = {
     // configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
     9,                                      // bLength;
     2,                                      // bDescriptorType;
     LSB(CONFIG1_DESC_SIZE),                 // wTotalLength
     MSB(CONFIG1_DESC_SIZE),
-    2,                                      // bNumInterfaces
+    3,                                      // bNumInterfaces
     1,                                      // bConfigurationValue
     0,                                      // iConfiguration
     0xC0,                                   // bmAttributes
     50,                                     // bMaxPower
+
     // interface descriptor, USB spec 9.6.5, page 267-269, Table 9-12
     9,                                      // bLength
     4,                                      // bDescriptorType
@@ -210,6 +256,7 @@ static uint8_t const PROGMEM config1_descriptor[CONFIG1_DESC_SIZE] = {
     0x03,                                   // bmAttributes (0x03=intr)
     KEYBOARD_SIZE, 0,                       // wMaxPacketSize
     1,                                      // bInterval
+
     // second (media keys) interface descriptor, USB spec 9.6.5, page 267-269, Table 9-12
     9,                                      // bLength
     4,                                      // bDescriptorType
@@ -235,7 +282,34 @@ static uint8_t const PROGMEM config1_descriptor[CONFIG1_DESC_SIZE] = {
     MEDIA_ENDPOINT | 0x80,                  // bEndpointAddress
     0x03,                                   // bmAttributes (0x03=intr)
     MEDIA_SIZE, 0,                          // wMaxPacketSize
-    1                                       // bInterval
+    1,                                      // bInterval
+
+    // third (mouse) interface descriptor
+    9,                                      // bLength
+    4,                                      // bDescriptorType
+    MOUSE_INTERFACE,                        // bInterfaceNumber
+    0,                                      // bAlternateSetting
+    1,                                      // bNumEndpoints
+    0x03,                                   // bInterfaceClass (0x03 = HID)
+    0x01,                                   // bInterfaceSubClass (0x01 = Boot)
+    0x02,                                   // bInterfaceProtocol (0x02 = Mouse)
+    0,                                      // iInterface
+    // HID interface descriptor
+    9,                                      // bLength
+    0x21,                                   // bDescriptorType
+    0x11, 0x01,                             // bcdHID
+    0,                                      // bCountryCode
+    1,                                      // bNumDescriptors
+    0x22,                                   // bDescriptorType
+    sizeof(mouse_hid_report_desc),          // wDescriptorLength
+    0,
+    // endpoint descriptor
+    7,                                      // bLength
+    5,                                      // bDescriptorType
+    MOUSE_ENDPOINT | 0x80,                  // bEndpointAddress
+    0x03,                                   // bmAttributes (0x03=intr)
+    MOUSE_SIZE, 0,                          // wMaxPacketSize
+    0x01                                    // bInterval
 };
 
 // If you're desperate for a little extra code memory, these strings
@@ -276,6 +350,8 @@ static struct descriptor_list_struct {
     {0x2100, KEYBOARD_INTERFACE, config1_descriptor+KEYBOARD_HID_DESC_OFFSET, 9},
     {0x2200, MEDIA_INTERFACE, media_hid_report_desc, sizeof(media_hid_report_desc)},
     {0x2101, MEDIA_INTERFACE, config1_descriptor+MEDIA_HID_DESC_OFFSET, 9},
+    {0x2200, MOUSE_INTERFACE, mouse_hid_report_desc, sizeof(mouse_hid_report_desc)},
+    {0x2102, MOUSE_INTERFACE, config1_descriptor+MOUSE_HID_DESC_OFFSET, 9},
     {0x0300, 0x0000, (const uint8_t *)&string0, 4},
     {0x0301, 0x0409, (const uint8_t *)&string1, sizeof(STR_MANUFACTURER)},
     {0x0302, 0x0409, (const uint8_t *)&string2, sizeof(STR_PRODUCT)}
@@ -300,6 +376,7 @@ volatile uint8_t keyboard_modifier_keys=0;
 // which keys are currently pressed, up to 6 keys may be down at once
 volatile uint8_t keyboard_keys[6] = {0, 0, 0, 0, 0, 0};
 volatile uint16_t media_keys[4] = {0, 0, 0, 0};
+volatile uint8_t mouse_buttons = 0;
 
 // protocol setting from the host.  We use exactly the same report
 // either way, so this variable only stores the setting since we
@@ -319,6 +396,10 @@ volatile uint8_t keyboard_leds=0;
 static uint8_t media_protocol=1;
 static uint8_t media_idle_config=125;
 static uint8_t media_idle_count=0;
+
+static uint8_t mouse_protocol=1;
+static uint8_t mouse_idle_config=125;
+static uint8_t mouse_idle_count=0;
 
 
 /**************************************************************************
@@ -378,6 +459,7 @@ int8_t usb_media_press(uint16_t key)
 
 static void send_key_data(void);
 static void send_media_key_data(void);
+static void send_mouse_data(int req);
 
 // send the contents of keyboard_keys and keyboard_modifier_keys
 int8_t usb_keyboard_send(void)
@@ -438,6 +520,36 @@ int8_t usb_media_send(void)
     return 0;
 }
 
+int8_t usb_mouse_send(uint8_t buttons)
+{
+    mouse_buttons = buttons;
+    uint8_t i, intr_state, timeout;
+
+    if (!usb_configuration) return -1;
+    intr_state = SREG;
+    cli();
+    UENUM = MOUSE_ENDPOINT;
+    timeout = UDFNUML + 50;
+    while (1) {
+        // are we ready to transmit?
+        if (UEINTX & (1<<RWAL)) break;
+        SREG = intr_state;
+        // has the USB gone offline?
+        if (!usb_configuration) return -1;
+        // have we waited too long?
+        if (UDFNUML == timeout) return -1;
+        // get ready to try checking again
+        intr_state = SREG;
+        cli();
+        UENUM = MOUSE_ENDPOINT;
+    }
+    send_mouse_data(1);
+    UEINTX = 0x3A;
+    keyboard_idle_count = 0;
+    SREG = intr_state;
+    return 0;
+}
+
 /**************************************************************************
  *
  *  Private Functions - not intended for general user consumption....
@@ -459,6 +571,26 @@ static void send_media_key_data() {
         UEDATX = media_keys[i] & 0xff;
         UEDATX = media_keys[i] >> 8;
     }
+}
+
+static void send_mouse_data(int req) {
+    int i;
+
+    UEDATX = mouse_buttons;
+
+    if (req) {
+        UEDATX = 0xf7; // 8 bits delta x
+        UEDATX = 0xaa; // 8 bits delta y
+    } else {
+        UEDATX = 0;
+        UEDATX = 0;
+    }
+
+    for(i = 0; i < 5; i++) {
+        UEDATX = 0;
+    }
+
+
 }
 
 
@@ -499,6 +631,17 @@ ISR(USB_GEN_vect)
                 if (media_idle_count == media_idle_config) {
                     media_idle_count = 0;
                     send_media_key_data();
+                    UEINTX = 0x3A;
+                }
+            }
+        }
+        if (mouse_idle_config && (++div4 & 3) == 0) {
+            UENUM = MOUSE_ENDPOINT;
+            if (UEINTX & (1<<RWAL)) {
+                mouse_idle_count++;
+                if (mouse_idle_count == mouse_idle_config) {
+                    mouse_idle_count = 0;
+                    send_mouse_data(0);
                     UEINTX = 0x3A;
                 }
             }
@@ -743,6 +886,47 @@ ISR(USB_COM_vect)
                 }
                 if (bRequest == HID_SET_PROTOCOL) {
                     media_protocol = wValue;
+                    usb_send_in();
+                    return;
+                }
+            }
+        }
+        if (wIndex == MOUSE_INTERFACE) {
+            if (bmRequestType == 0xA1) {
+                if (bRequest == HID_GET_REPORT) {
+                    usb_wait_in_ready();
+                    send_mouse_data(0);
+                    usb_send_in();
+                    return;
+                }
+                if (bRequest == HID_GET_IDLE) {
+                    usb_wait_in_ready();
+                    UEDATX = mouse_idle_config;
+                    usb_send_in();
+                    return;
+                }
+                if (bRequest == HID_GET_PROTOCOL) {
+                    usb_wait_in_ready();
+                    UEDATX = mouse_protocol;
+                    usb_send_in();
+                    return;
+                }
+            }
+            if (bmRequestType == 0x21) {
+                if (bRequest == HID_SET_REPORT) {
+                    usb_wait_receive_out();
+                    usb_ack_out();
+                    usb_send_in();
+                    return;
+                }
+                if (bRequest == HID_SET_IDLE) {
+                    mouse_idle_config = (wValue >> 8);
+                    mouse_idle_count = 0;
+                    usb_send_in();
+                    return;
+                }
+                if (bRequest == HID_SET_PROTOCOL) {
+                    mouse_protocol = wValue;
                     usb_send_in();
                     return;
                 }
