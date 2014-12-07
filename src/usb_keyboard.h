@@ -10,7 +10,7 @@ int8_t usb_keyboard_press(uint8_t key, uint8_t modifier);
 int8_t usb_media_press(uint16_t key);
 int8_t usb_keyboard_send(void);
 int8_t usb_media_send(void);
-int8_t usb_mouse_send(uint8_t buttons);
+int8_t usb_mouse_send(uint8_t buttons, int8_t delta_x, int8_t delta_y);
 
 extern volatile uint8_t keyboard_modifier_keys;
 extern volatile uint8_t keyboard_keys[6];

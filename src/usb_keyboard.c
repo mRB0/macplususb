@@ -449,7 +449,7 @@ int8_t usb_media_press(uint16_t key)
 
 static void send_key_data(void);
 static void send_media_key_data(void);
-static void send_mouse_data(int req);
+static void send_mouse_data(int8_t delta_x, int8_t delta_y);
 
 // send the contents of keyboard_keys and keyboard_modifier_keys
 int8_t usb_keyboard_send(void)
@@ -510,7 +510,7 @@ int8_t usb_media_send(void)
     return 0;
 }
 
-int8_t usb_mouse_send(uint8_t buttons)
+int8_t usb_mouse_send(uint8_t buttons, int8_t delta_x, int8_t delta_y)
 {
     mouse_buttons = buttons;
     uint8_t i, intr_state, timeout;
@@ -533,7 +533,7 @@ int8_t usb_mouse_send(uint8_t buttons)
         cli();
         UENUM = MOUSE_ENDPOINT;
     }
-    send_mouse_data(1);
+    send_mouse_data(delta_x, delta_y);
     UEINTX = 0x3A;
     mouse_idle_count = 0;
     SREG = intr_state;
@@ -563,18 +563,13 @@ static void send_media_key_data() {
     }
 }
 
-static void send_mouse_data(int req) {
+static void send_mouse_data(int8_t delta_x, int8_t delta_y) {
     int i;
 
     UEDATX = mouse_buttons;
 
-    if (req) {
-        UEDATX = 0xf7; // 8 bits delta x
-        UEDATX = 0xaa; // 8 bits delta y
-    } else {
-        UEDATX = 0;
-        UEDATX = 0;
-    }
+    UEDATX = delta_x;
+    UEDATX = delta_y;
 
     UEDATX = 0; // wheel
 
@@ -629,7 +624,7 @@ ISR(USB_GEN_vect)
                 mouse_idle_count++;
                 if (mouse_idle_count == mouse_idle_config) {
                     mouse_idle_count = 0;
-                    send_mouse_data(0);
+                    send_mouse_data(0, 0);
                     UEINTX = 0x3A;
                 }
             }
@@ -883,7 +878,7 @@ ISR(USB_COM_vect)
             if (bmRequestType == 0xA1) {
                 if (bRequest == HID_GET_REPORT) {
                     usb_wait_in_ready();
-                    send_mouse_data(0);
+                    send_mouse_data(0, 0);
                     usb_send_in();
                     return;
                 }
