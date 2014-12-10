@@ -204,49 +204,9 @@ static int anything_fired(void) {
     return _timer0_fired || _mouse_quadrature_x_1_fired || _mouse_quadrature_x_2_fired || _mouse_quadrature_x_1_fired || _mouse_quadrature_y_2_fired;
 }
 
-// DEBUG: testing events
-
-typedef struct {
-    event_handle_t handle;
-
-    uint16_t ticks_since_last_toggle;
-    uint16_t toggles;
-
-} _flash_state_t;
-
-_flash_state_t _flash_state;
-
-static void _flash_handler(void *context, event_type_t event_type, void *event_args) {
-    _flash_state_t *state = (_flash_state_t *)context;
-
-    state->ticks_since_last_toggle++;
-    if (state->ticks_since_last_toggle > 100) {
-        state->ticks_since_last_toggle = 0;
-        state->toggles++;
-        if (state->toggles % 2) {
-            LED_ON;
-        } else {
-            LED_OFF;
-        }
-    }
-
-    if (state->toggles > 12) {
-        event_unregister_handler(state->handle);
-    }
-}
-
-// end DEBUG
-
 static void run(void) {
     wdt_reset();
     wdt_enable(WDTO_1S);
-
-    // DEBUG: testing event dispatching
-    _flash_state.toggles = 0;
-    _flash_state.ticks_since_last_toggle = 0;
-    _flash_state.handle = event_register_handler(EVENT_TYPE_TICK, _flash_handler, &_flash_state);
-    LED_OFF;
-
 
     // mouse button debounce state
     uint8_t mouse_current_button = 0;
