@@ -4,7 +4,7 @@
 
 #define _MAX_HANDLERS (16)
 
-// private typedefs
+// private things
 
 typedef struct {
     uint8_t in_use;
@@ -14,7 +14,7 @@ typedef struct {
 } _event_registration_t;
 
 
-_event_registration_t _registered_handlers[_MAX_HANDLERS];
+static _event_registration_t _registered_handlers[_MAX_HANDLERS];
 
 
 // functions
