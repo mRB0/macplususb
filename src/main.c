@@ -6,6 +6,7 @@
 #include <util/delay.h>
 #include <stdint.h>
 
+#include "timevalues.h"
 #include "usb_keyboard.h"
 #include "events.h"
 
@@ -70,25 +71,12 @@
 // You probably won't need or want to change anything after this
 // line.
 
-// Timer 0 clock select (prescaling; controls TCCR0B[2:0] aka
-// CS0[2:0]).
-//
-// This controls how fast the system ticks.  We need to debounce
-// before registering a keypress, so this should be reasonably fast in
-// order to feel responsive.  See also DebounceTickLimit, which should
-// be decreased if you increase the tick frequency.
-//
-//   0x05; // clkIO/1024 -> 61 Hz
-//   0x04; // clkIO/256 -> 244.14 Hz
-//   0x03; // clkIO/64 -> 976.6 Hz
-static uint8_t const Timer0Overflow = 0x04;
-
 // Number of consecutive ticks that a switch has to maintain the same
 // value in order to register a keypress.
 //
 // Calculated the same way as LongPressTime, and affected by
 // Timer0Overflow in the same way as well.
-static uint8_t const DebounceTickLimit = 3;
+static uint8_t DebounceTimeLimitMS = 12;
 
 // Amount to report the mouse moves for each quadrature change interrupt.
 static uint8_t const MouseMoveAmount = 0x01;
@@ -129,6 +117,7 @@ static volatile uint8_t _mouse_button_fired;
 //
 
 static void setup(void) {
+
 
     LED_CONFIG;
     LED_ON;
@@ -195,7 +184,7 @@ static void setup(void) {
 
     // Configure timer 0 to give us ticks
 	TCCR0A = 0x00;
-	TCCR0B = Timer0Overflow & 0x07;
+	TCCR0B = TVTimer0Overflow & 0x07;
 	TIMSK0 = (1<<TOIE0); // use the overflow interrupt only
     _timer0_fired = 0;
 }
@@ -207,6 +196,8 @@ static int anything_fired(void) {
 static void run(void) {
     wdt_reset();
     wdt_enable(WDTO_1S);
+
+    uint8_t const DebounceTickLimit = DebounceTimeLimitMS / TVMillisPerTick;
 
     // mouse button debounce state
     uint8_t mouse_current_button = 0;
@@ -251,6 +242,10 @@ static void run(void) {
 
         sei();
 
+        //
+        // Mouse button
+        //
+
         int8_t mouse_button_changed = 0;
 
         if (timer0_fired) {
@@ -270,6 +265,10 @@ static void run(void) {
                 }
             }
         }
+
+        //
+        // Mouse movement
+        //
 
         // If a quadrature pair doesn't match, then the one whose interrupt fired has a
         // leading edge, indicating that the mouse is moving in that direction.

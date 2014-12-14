@@ -6,7 +6,7 @@ Colour | Mac keyboard pin | Teensy pin | Meaning
 ------ | ---------------- | ---------- | -------
 gray   | 1                | GND        | GND
 purple | 2                | PE7 (INT7) | KBD1 (Keyboard Clock)
-blue   | 3                | ???        | KBD2 (Keyboard Data)
+blue   | 3                | PB0        | KBD2 (Keyboard Data)
 green  | 4                | +5V        | +5V
 
 KBD2 (data) could be on PE4/5 (INT4/5) if an interrupt is required, but that will require more soldering.  Otherwise any other pin should suffice.
