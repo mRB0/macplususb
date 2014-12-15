@@ -46,7 +46,7 @@ TARGET = main
 
 # List C source files here. (C dependencies are automatically generated.)
 SRC =	$(TARGET).c \
-	usb_keyboard.c events.c timevalues.c
+	usb_keyboard.c events.c timevalues.c kbcomm.c kbglue.c
 
 
 # List C++ source files here. (C dependencies are automatically generated.)
