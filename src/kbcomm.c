@@ -14,7 +14,7 @@
 #include <avr/wdt.h>
 #include <util/delay.h>
 
-#define HOLD_FOR_RECEIVE_TICK_COUNT 1
+#define HOLD_FOR_RECEIVE_TICK_COUNT 3
 
 
 static volatile uint8_t _xfer_byte;
@@ -25,8 +25,6 @@ static volatile uint8_t _completed, _active, _hold_for_receive;
 
 static void (*_read_completion)(uint8_t result, uint8_t data);
 static void (*_write_completion)(uint8_t result);
-
-static uint8_t DBG_usb_keys_for_numbers[] = { KEY_0, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9 };
 
 static uint16_t _ticks_until_reset;
 static uint16_t _ticks_since_last_comm;
@@ -71,7 +69,6 @@ static void _tick_handler(void *context, event_type_t event_type, void *event_ar
     if (!_completed) {
         _ticks_since_last_comm++;
         if (_ticks_since_last_comm > _ticks_until_reset) {
-            usb_keyboard_press(KEY_1, MODIFIER_KEY_LEFT_SHIFT);
             _completed = 1;
             _active = 0;
 
@@ -110,7 +107,6 @@ void kb_writebyte(uint8_t data, void (*write_completed)(uint8_t result)) {
 
     EIMSK &= ~0x80; // disable int7
     _ticks_since_last_comm = 0;
-    usb_keyboard_press(KEY_MINUS, 0);
 
     _write_completion = write_completed;
 
@@ -138,9 +134,6 @@ void kb_postisr(void) {
     cli();
     if (_completed && _active) {
         _active = 0;
-        SREG = intr_state;
-        usb_keyboard_press(KEY_SEMICOLON, 0);
-        cli();
         _ticks_since_last_comm = 0;
 
         // end of byte
