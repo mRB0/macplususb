@@ -194,7 +194,7 @@ static void setup(void) {
 }
 
 static int anything_fired(void) {
-    return _timer0_fired || _mouse_quadrature_x_1_fired || _mouse_quadrature_x_2_fired || _mouse_quadrature_x_1_fired || _mouse_quadrature_y_2_fired || kb_isr_fired();
+    return _timer0_fired || _mouse_quadrature_x_1_fired || _mouse_quadrature_x_2_fired || _mouse_quadrature_x_1_fired || _mouse_quadrature_y_2_fired || kb_isr_fired() || _mouse_button_fired;
 }
 
 static void run(void) {
