@@ -9,6 +9,8 @@
 #include "timevalues.h"
 #include "usb_keyboard.h"
 #include "events.h"
+#include "kbcomm.h"
+#include "kbglue.h"
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -187,10 +189,12 @@ static void setup(void) {
 	TCCR0B = TVTimer0Overflow & 0x07;
 	TIMSK0 = (1<<TOIE0); // use the overflow interrupt only
     _timer0_fired = 0;
+
+    kb_setup();
 }
 
 static int anything_fired(void) {
-    return _timer0_fired || _mouse_quadrature_x_1_fired || _mouse_quadrature_x_2_fired || _mouse_quadrature_x_1_fired || _mouse_quadrature_y_2_fired;
+    return _timer0_fired || _mouse_quadrature_x_1_fired || _mouse_quadrature_x_2_fired || _mouse_quadrature_x_1_fired || _mouse_quadrature_y_2_fired || kb_isr_fired();
 }
 
 static void run(void) {
@@ -202,6 +206,8 @@ static void run(void) {
     // mouse button debounce state
     uint8_t mouse_current_button = 0;
     uint8_t mouse_button_debounce_ticks = DebounceTickLimit + 1;
+
+    kg_begin();
 
 	for(;;) {        
         uint8_t timer0_fired = 0;
@@ -241,6 +247,10 @@ static void run(void) {
         _mouse_button_fired = 0;
 
         sei();
+
+        // Keyboard
+
+        kb_postisr();
 
         //
         // Mouse button
