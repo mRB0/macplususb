@@ -14,7 +14,7 @@
 #include <avr/wdt.h>
 #include <util/delay.h>
 
-#define HOLD_FOR_RECEIVE_TICK_COUNT 3
+#define HOLD_FOR_RECEIVE_TICK_COUNT 2
 
 
 static volatile uint8_t _xfer_byte;
@@ -41,7 +41,7 @@ void kb_setup(void) {
     KB_DATA_DDR &= ~_BV(KB_DATA_BIT);
 
     // External interrupt for PORTE7
-    EICRB = 0x80; // int7: trigger on falling edge
+    EICRB = (EICRB | 0x80) & ~0x40; // int7: trigger on falling edge
 
     EIMSK &= ~0x80; // disable int7 until required
 
@@ -61,7 +61,7 @@ static void _tick_handler(void *context, event_type_t event_type, void *event_ar
             KB_DATA_DDR &= ~_BV(KB_DATA_BIT);
 
             EIFR &= ~0x80; // clear int7 flags
-            EICRB = 0x80; // int7: trigger on falling edge
+            EICRB = (EICRB | 0x80) & ~0x40; // int7: trigger on falling edge
             EIMSK |= 0x80; // enable int7
         }
     }
@@ -120,7 +120,7 @@ void kb_writebyte(uint8_t data, void (*write_completed)(uint8_t result)) {
     KB_DATA_PORT &= ~_BV(KB_DATA_BIT);
     KB_DATA_DDR |= _BV(KB_DATA_BIT);
 
-    EICRB = 0x80; // int7: trigger on falling edge
+    EICRB = (EICRB | 0x80) & ~0x40; // int7: trigger on falling edge
     EIFR &= ~0x80; // clear int7 flags
     EIMSK |= 0x80; // enable int7
 }
@@ -179,7 +179,7 @@ ISR(INT7_vect) {
         _count++;
 
         if (_count == ISR_CALLS_PER_BYTE) {
-            EICRB = 0xC0; // int7: trigger on RISING edge (to release output)
+            EICRB |= 0xC0; // int7: trigger on RISING edge (to release output)
         }
     } else {
         EIMSK &= ~0x80; // disable int7 until next call

@@ -38,6 +38,8 @@ static uint8_t _check_result(uint8_t result) {
 // processing
 
 static void _dbg_send_data(uint8_t data) {
+    return;
+
     if (_expecting_keypad_result) {
         usb_keyboard_press(KEY_K, 0);
     }
