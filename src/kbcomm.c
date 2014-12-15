@@ -164,10 +164,6 @@ uint8_t kb_isr_fired(void) {
 }
 
 ISR(INT7_vect) {
-    // if (_count >= ISR_CALLS_PER_BYTE) {
-    //     return;
-    // }
-
     if (!(KB_CLK_PIN & _BV(KB_CLK_BIT))) {
         if (_reading) {
             _xfer_byte = (_xfer_byte << 1) | ((KB_DATA_PIN & _BV(KB_DATA_BIT)) ? 0x01 : 0);
