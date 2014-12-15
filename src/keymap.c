@@ -24,7 +24,7 @@ uint8_t const AppleScancodeToUSBKey[128] = {
     0,
     KEY_C,
     0,
-    KEY_Y,
+    KEY_V,
     0,
     0,
     0,
