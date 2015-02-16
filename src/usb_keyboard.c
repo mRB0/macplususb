@@ -973,3 +973,160 @@ ISR(USB_COM_vect)
 }
 
 
+/////////////////////
+// Debug helpers
+
+static uint8_t _char_to_key[][2] = { 
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+
+    { 0, 0 }, // 8
+    { 0, KEY_TAB },
+    { 0, KEY_ENTER },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    
+    { 0, 0 }, // 16
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    
+    { 0, 0 }, // 24
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    
+    { 0, KEY_SPACE }, // 32
+    { MODIFIER_KEY_SHIFT, KEY_1 },
+    { MODIFIER_KEY_SHIFT, KEY_QUOTE },
+    { MODIFIER_KEY_SHIFT, KEY_3 },
+    { MODIFIER_KEY_SHIFT, KEY_4 },
+    { MODIFIER_KEY_SHIFT, KEY_5 },
+    { MODIFIER_KEY_SHIFT, KEY_7 },
+    { 0, KEY_QUOTE },
+    
+    { MODIFIER_KEY_SHIFT, KEY_9 }, // 40
+    { MODIFIER_KEY_SHIFT, KEY_0 },
+    { MODIFIER_KEY_SHIFT, KEY_8 },
+    { MODIFIER_KEY_SHIFT, KEY_EQUAL },
+    { 0, KEY_COMMA },
+    { 0, KEY_MINUS },
+    { 0, KEY_PERIOD },
+    { 0, KEY_SLASH },
+    
+    { 0, KEY_0 }, // 48
+    { 0, KEY_1 },
+    { 0, KEY_2 },
+    { 0, KEY_3 },
+    { 0, KEY_4 },
+    { 0, KEY_5 },
+    { 0, KEY_6 },
+    { 0, KEY_7 },
+
+    { 0, KEY_8 }, // 56
+    { 0, KEY_9 },
+    { MODIFIER_KEY_SHIFT, KEY_SEMICOLON },
+    { 0, KEY_SEMICOLON },
+    { MODIFIER_KEY_SHIFT, KEY_COMMA },
+    { 0, KEY_EQUAL },
+    { MODIFIER_KEY_SHIFT, KEY_PERIOD },
+    { MODIFIER_KEY_SHIFT, KEY_SLASH },
+    
+    { MODIFIER_KEY_SHIFT, KEY_2 }, // 64
+    { MODIFIER_KEY_SHIFT, KEY_A },
+    { MODIFIER_KEY_SHIFT, KEY_B },
+    { MODIFIER_KEY_SHIFT, KEY_C },
+    { MODIFIER_KEY_SHIFT, KEY_D },
+    { MODIFIER_KEY_SHIFT, KEY_E },
+    { MODIFIER_KEY_SHIFT, KEY_F },
+    { MODIFIER_KEY_SHIFT, KEY_G },
+    { MODIFIER_KEY_SHIFT, KEY_H },
+    { MODIFIER_KEY_SHIFT, KEY_I },
+    { MODIFIER_KEY_SHIFT, KEY_J },
+    { MODIFIER_KEY_SHIFT, KEY_K },
+    { MODIFIER_KEY_SHIFT, KEY_L },
+    { MODIFIER_KEY_SHIFT, KEY_M },
+    { MODIFIER_KEY_SHIFT, KEY_N },
+    { MODIFIER_KEY_SHIFT, KEY_O },
+    { MODIFIER_KEY_SHIFT, KEY_P },
+    { MODIFIER_KEY_SHIFT, KEY_Q },
+    { MODIFIER_KEY_SHIFT, KEY_R },
+    { MODIFIER_KEY_SHIFT, KEY_S },
+    { MODIFIER_KEY_SHIFT, KEY_T },
+    { MODIFIER_KEY_SHIFT, KEY_U },
+    { MODIFIER_KEY_SHIFT, KEY_V },
+    { MODIFIER_KEY_SHIFT, KEY_W },
+    { MODIFIER_KEY_SHIFT, KEY_X },
+    { MODIFIER_KEY_SHIFT, KEY_Y },
+    { MODIFIER_KEY_SHIFT, KEY_Z },
+
+    { 0, KEY_LEFT_BRACE }, // 91
+    { 0, KEY_BACKSLASH },
+    { 0, KEY_RIGHT_BRACE },
+    { MODIFIER_KEY_SHIFT, KEY_6 },
+    { MODIFIER_KEY_SHIFT, KEY_MINUS },
+
+    { 0, KEY_TILDE }, // 96
+    { 0, KEY_A },
+    { 0, KEY_B },
+    { 0, KEY_C },
+    { 0, KEY_D },
+    { 0, KEY_E },
+    { 0, KEY_F },
+    { 0, KEY_G },
+    { 0, KEY_H },
+    { 0, KEY_I },
+    { 0, KEY_J },
+    { 0, KEY_K },
+    { 0, KEY_L },
+    { 0, KEY_M },
+    { 0, KEY_N },
+    { 0, KEY_O },
+    { 0, KEY_P },
+    { 0, KEY_Q },
+    { 0, KEY_R },
+    { 0, KEY_S },
+    { 0, KEY_T },
+    { 0, KEY_U },
+    { 0, KEY_V },
+    { 0, KEY_W },
+    { 0, KEY_X },
+    { 0, KEY_Y },
+    { 0, KEY_Z },
+
+    { MODIFIER_KEY_SHIFT, KEY_LEFT_BRACE }, // 123
+    { MODIFIER_KEY_SHIFT, KEY_BACKSLASH },
+    { MODIFIER_KEY_SHIFT, KEY_RIGHT_BRACE },
+    { MODIFIER_KEY_SHIFT, KEY_TILDE },
+    { 0, 0 },
+};
+
+void usb_keyboard_send_message(char *msg) {
+    for(char *ltr = msg; *ltr; ltr++) {
+
+        uint8_t *values = _char_to_key[*ltr & 0x7f];
+        if (!values[1]) {
+            continue;
+        }
+
+        usb_keyboard_press(values[1], values[0]);
+    }
+}
+
