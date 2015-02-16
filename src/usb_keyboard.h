@@ -7,6 +7,8 @@ void usb_init(void);			// initialize everything
 uint8_t usb_configured(void);		// is the USB port configured
 
 int8_t usb_keyboard_press(uint8_t key, uint8_t modifier);
+void usb_keyboard_send_message(char *msg);
+
 int8_t usb_media_press(uint16_t key);
 
 void usb_keyboard_send(void);
