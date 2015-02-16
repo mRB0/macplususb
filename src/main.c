@@ -93,6 +93,7 @@ static uint8_t const MouseMoveAmount = 0x01;
 #define LED_CONFIG	(DDRD |= (1<<6))
 #define LED_OFF		(PORTD &= ~(1<<6))
 #define LED_ON		(PORTD |= (1<<6))
+#define LED_TOGGLE  { if (PORTD & (1<<6)) { LED_OFF; } else { LED_ON; } }
 
 //
 // Constants

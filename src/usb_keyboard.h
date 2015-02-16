@@ -8,12 +8,23 @@ uint8_t usb_configured(void);		// is the USB port configured
 
 int8_t usb_keyboard_press(uint8_t key, uint8_t modifier);
 int8_t usb_media_press(uint16_t key);
-int8_t usb_keyboard_send(void);
-int8_t usb_media_send(void);
+
+void usb_keyboard_send(void);
+void usb_media_send(void);
+
+int8_t usb_keyboard_send_now(void);
+int8_t usb_media_send_now(void);
 int8_t usb_mouse_send(uint8_t buttons, int8_t delta_x, int8_t delta_y);
 
+
+
 extern volatile uint8_t keyboard_modifier_keys;
+extern volatile uint8_t keyboard_modifier_keys_acked; // set by keyboard_send isr when keys have been sent after a call to usb_keyboard_send()
+
 extern volatile uint8_t keyboard_keys[6];
+extern volatile uint8_t keyboard_keys_acked[6]; // set by keyboard_send isr when keys have been sent after a call to usb_keyboard_send()
+
+
 extern volatile uint16_t media_keys[4];
 extern volatile uint8_t keyboard_leds;
 

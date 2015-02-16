@@ -24,9 +24,12 @@
 // Version 1.0: Initial Release
 // Version 1.1: Add support for Teensy 2.0
 
+
 #define USB_SERIAL_PRIVATE_INCLUDE
 #include "usb_keyboard.h"
 
+#include <string.h>
+ 
 /**************************************************************************
  *
  *  Configurable Options
@@ -62,6 +65,9 @@
  **************************************************************************/
 
 #define ENDPOINT0_SIZE          32
+
+#define FIRST_ENDPOINT 2
+#define LAST_ENDPOINT 4
 
 #define KEYBOARD_INTERFACE      0
 #define MEDIA_INTERFACE         1
@@ -362,9 +368,12 @@ static volatile uint8_t usb_configuration=0;
 // 1=left ctrl,    2=left shift,   4=left alt,    8=left gui
 // 16=right ctrl, 32=right shift, 64=right alt, 128=right gui
 volatile uint8_t keyboard_modifier_keys=0;
+volatile uint8_t keyboard_modifier_keys_acked=0;
 
 // which keys are currently pressed, up to 6 keys may be down at once
 volatile uint8_t keyboard_keys[6] = {0, 0, 0, 0, 0, 0};
+volatile uint8_t keyboard_keys_acked[6] = {0, 0, 0, 0, 0, 0};
+
 volatile uint16_t media_keys[4] = {0, 0, 0, 0};
 volatile uint8_t mouse_buttons = 0;
 
@@ -428,11 +437,11 @@ int8_t usb_keyboard_press(uint8_t key, uint8_t modifier)
 
     keyboard_modifier_keys = modifier;
     keyboard_keys[0] = key;
-    r = usb_keyboard_send();
+    r = usb_keyboard_send_now();
     if (r) return r;
     keyboard_modifier_keys = 0;
     keyboard_keys[0] = 0;
-    return usb_keyboard_send();
+    return usb_keyboard_send_now();
 }
 
 // perform a single keystroke
@@ -441,10 +450,10 @@ int8_t usb_media_press(uint16_t key)
     int8_t r;
 
     media_keys[0] = key;
-    r = usb_media_send();
+    r = usb_media_send_now();
     if (r) return r;
     media_keys[0] = 0;
-    return usb_media_send();
+    return usb_media_send_now();
 }
 
 static void send_key_data(void);
@@ -452,68 +461,22 @@ static void send_media_key_data(void);
 static void send_mouse_data(int8_t delta_x, int8_t delta_y);
 
 // send the contents of keyboard_keys and keyboard_modifier_keys
-int8_t usb_keyboard_send(void)
+void usb_keyboard_send(void)
 {
-    uint8_t i, intr_state, timeout;
-
-    if (!usb_configuration) return -1;
-    intr_state = SREG;
-    cli();
     UENUM = KEYBOARD_ENDPOINT;
-    timeout = UDFNUML + 50;
-    while (1) {
-        // are we ready to transmit?
-        if (UEINTX & (1<<RWAL)) break;
-        SREG = intr_state;
-        // has the USB gone offline?
-        if (!usb_configuration) return -1;
-        // have we waited too long?
-        if (UDFNUML == timeout) return -1;
-        // get ready to try checking again
-        intr_state = SREG;
-        cli();
-        UENUM = KEYBOARD_ENDPOINT;
-    }
-    send_key_data();
-    UEINTX = 0x3A;
-    keyboard_idle_count = 0;
-    SREG = intr_state;
-    return 0;
+    UEIENX |= (1 << TXINE);
 }
 
-int8_t usb_media_send(void)
+void usb_media_send(void)
 {
-    uint8_t i, intr_state, timeout;
-
-    if (!usb_configuration) return -1;
-    intr_state = SREG;
-    cli();
     UENUM = MEDIA_ENDPOINT;
-    timeout = UDFNUML + 50;
-    while (1) {
-        // are we ready to transmit?
-        if (UEINTX & (1<<RWAL)) break;
-        SREG = intr_state;
-        // has the USB gone offline?
-        if (!usb_configuration) return -1;
-        // have we waited too long?
-        if (UDFNUML == timeout) return -1;
-        // get ready to try checking again
-        intr_state = SREG;
-        cli();
-        UENUM = MEDIA_ENDPOINT;
-    }
-    send_media_key_data();
-    UEINTX = 0x3A;
-    media_idle_count = 0;
-    SREG = intr_state;
-    return 0;
+    UEIENX |= (1 << TXINE);
 }
 
 int8_t usb_mouse_send(uint8_t buttons, int8_t delta_x, int8_t delta_y)
 {
     mouse_buttons = buttons;
-    uint8_t i, intr_state, timeout;
+    uint8_t intr_state, timeout;
 
     if (!usb_configuration) return -1;
     intr_state = SREG;
@@ -540,6 +503,67 @@ int8_t usb_mouse_send(uint8_t buttons, int8_t delta_x, int8_t delta_y)
     return 0;
 }
 
+ // send the contents of keyboard_keys and keyboard_modifier_keys
+ int8_t usb_keyboard_send_now(void)
+ {
+    uint8_t intr_state, timeout;
+
+    if (!usb_configuration) return -1;
+    intr_state = SREG;
+    cli();
+    UENUM = KEYBOARD_ENDPOINT;
+    timeout = UDFNUML + 50;
+    while (1) {
+        // are we ready to transmit?
+        if (UEINTX & (1<<RWAL)) break;
+        SREG = intr_state;
+        // has the USB gone offline?
+        if (!usb_configuration) return -1;
+        // have we waited too long?
+        if (UDFNUML == timeout) return -1;
+        // get ready to try checking again
+        intr_state = SREG;
+        cli();
+        UENUM = KEYBOARD_ENDPOINT;
+    }
+    send_key_data();
+    UEINTX = 0x3A;
+    keyboard_idle_count = 0;
+    SREG = intr_state;
+    return 0;
+}
+
+int8_t usb_media_send_now(void)
+{
+    uint8_t intr_state, timeout;
+
+    if (!usb_configuration) return -1;
+    intr_state = SREG;
+    cli();
+    UENUM = MEDIA_ENDPOINT;
+    timeout = UDFNUML + 50;
+    while (1) {
+        // are we ready to transmit?
+        if (UEINTX & (1<<RWAL)) break;
+        SREG = intr_state;
+        // has the USB gone offline?
+        if (!usb_configuration) return -1;
+        // have we waited too long?
+        if (UDFNUML == timeout) return -1;
+        // get ready to try checking again
+        intr_state = SREG;
+        cli();
+        UENUM = MEDIA_ENDPOINT;
+    }
+    send_media_key_data();
+    UEINTX = 0x3A;
+    media_idle_count = 0;
+    SREG = intr_state;
+    return 0;
+}
+
+
+
 /**************************************************************************
  *
  *  Private Functions - not intended for general user consumption....
@@ -564,16 +588,12 @@ static void send_media_key_data() {
 }
 
 static void send_mouse_data(int8_t delta_x, int8_t delta_y) {
-    int i;
-
     UEDATX = mouse_buttons;
 
     UEDATX = delta_x;
     UEDATX = delta_y;
 
     UEDATX = 0; // wheel
-
-
 }
 
 
@@ -654,12 +674,45 @@ static inline void usb_ack_out(void)
 
 
 
-// USB Endpoint Interrupt - endpoint 0 is handled here.  The
-// other endpoints are manipulated by the user-callable
-// functions, and the start-of-frame interrupt.
 //
+// USB Endpoint Interrupt
+//
+
 ISR(USB_COM_vect)
 {
+    // device endpoint interrupt handling
+
+    for (uint8_t epnum = FIRST_ENDPOINT; epnum <= LAST_ENDPOINT; epnum++) {
+        UENUM = epnum;
+
+        if ((UEIENX & (1 << TXINE)) && // interrupt enabled
+            (UEINTX & (1 << TXINI))) { // interrupt fired
+
+            // clear interrupt and disable
+            UEINTX &= ~(1 << TXINI);
+            UEIENX &= ~(1 << TXINE);
+
+            switch(epnum) {
+            case KEYBOARD_ENDPOINT:
+                send_key_data();
+                UEINTX &= ~(1 << FIFOCON);
+
+                keyboard_modifier_keys_acked = keyboard_modifier_keys;
+                memcpy((void *)keyboard_keys_acked, (void *)keyboard_keys, sizeof(keyboard_keys));
+
+                break;
+            case MEDIA_ENDPOINT:
+                send_media_key_data();
+                UEINTX &= ~(1 << FIFOCON);
+                break;
+
+            }
+
+        }
+    }
+
+    // endpoint 0 handler
+
     uint8_t intbits;
     const uint8_t *list;
     const uint8_t *cfg;
