@@ -5,6 +5,7 @@
 #include <avr/wdt.h>
 #include <util/delay.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "timevalues.h"
 #include "usb_keyboard.h"
@@ -81,8 +82,14 @@
 static uint8_t DebounceTimeLimitMS = 12;
 
 // Amount to report the mouse moves for each quadrature change interrupt.
-static uint8_t const MouseMoveAmount = 0x01;
+static uint8_t const MouseMoveAmountLowSpeed = 0x04;
+static uint8_t const MouseMoveAmountMedSpeed = 0x08;
+static uint8_t const MouseMoveAmountHighSpeed = 0x10;
 
+static uint8_t const MouseCooldownMedSpeedStart =  8; // start highspeed when cooldown hits this value
+static uint8_t const MouseCooldownHighSpeedStart = 16; // start highspeed when cooldown hits this value
+static uint8_t const MouseCooldownHighSpeedCap = 75;
+static uint8_t const MouseCooldownMovementStep = 3; // increment by this amount with each mouse movement; decrement by 1
 
 //
 // End of user-configurable stuff.
@@ -192,6 +199,8 @@ static void setup(void) {
     _timer0_fired = 0;
 
     kb_setup();
+
+    timer1_setup();
 }
 
 static int anything_fired(void) {
@@ -199,14 +208,30 @@ static int anything_fired(void) {
 }
 
 static void run(void) {
+    /* char buf[100]; */
+    /* _delay_ms(100); */
+
+    /* uint32_t start = timer1_read_ms(); */
+    /* snprintf(buf, 100, "start %ld (%d)\n", start, timer1_read()); */
+    /* usb_keyboard_send_message(buf); */
+
+    /* _delay_ms(500); */
+    /* uint32_t end = timer1_read_ms(); */
+
+    /* snprintf(buf, 100, "%ld (%d) - %ld = %ld ms\n", end, timer1_read(), start, end - start); */
+    /* usb_keyboard_send_message(buf); */
+    
     wdt_reset();
     wdt_enable(WDTO_1S);
 
-    uint8_t const DebounceTickLimit = DebounceTimeLimitMS / TVMillisPerTick;
+    uint8_t const DebounceTickLimit = DebounceTimeLimitMS / TVMillisPerTickTimer0;
 
     // mouse button debounce state
     uint8_t mouse_current_button = 0;
     uint8_t mouse_button_debounce_ticks = DebounceTickLimit + 1;
+
+    // mouse "acceleration"
+    uint8_t mouse_cooldown_ticks_x = 0, mouse_cooldown_ticks_y = 0;
 
     kg_begin();
 
@@ -275,6 +300,13 @@ static void run(void) {
                     mouse_current_button = (PINE & _BV(6)) ? 0x00 : 0x01;
                 }
             }
+
+            if (mouse_cooldown_ticks_x != 0) {
+                mouse_cooldown_ticks_x--;
+            }
+            if (mouse_cooldown_ticks_y != 0) {
+                mouse_cooldown_ticks_y--;
+            }
         }
 
         //
@@ -287,39 +319,42 @@ static void run(void) {
         int8_t delta_x = 0;
         int8_t delta_y = 0;
 
+        uint8_t mouse_speed_x = (mouse_cooldown_ticks_x >= MouseCooldownHighSpeedStart) ? MouseMoveAmountHighSpeed : ((mouse_cooldown_ticks_x >= MouseCooldownMedSpeedStart) ? MouseMoveAmountMedSpeed : MouseMoveAmountLowSpeed);
+        uint8_t mouse_speed_y = (mouse_cooldown_ticks_y >= MouseCooldownHighSpeedStart) ? MouseMoveAmountHighSpeed : ((mouse_cooldown_ticks_y >= MouseCooldownMedSpeedStart) ? MouseMoveAmountMedSpeed : MouseMoveAmountLowSpeed);
+        
         if (mouse_quadrature_x_1_fired) {
             uint8_t leading = (!(PIND & _BV(0)) != !(PIND & _BV(1)));
             if (leading) {
-                delta_x += MouseMoveAmount;
+                delta_x += mouse_speed_x;
             } else {
-                delta_x -= MouseMoveAmount;
+                delta_x -= mouse_speed_y;
             }
         }
 
         if (mouse_quadrature_x_2_fired) {
             uint8_t leading = (!(PIND & _BV(0)) != !(PIND & _BV(1)));
             if (leading) {
-                delta_x -= MouseMoveAmount;
+                delta_x -= mouse_speed_x;
             } else {
-                delta_x += MouseMoveAmount;
+                delta_x += mouse_speed_y;
             }
         }
 
         if (mouse_quadrature_y_1_fired) {
             uint8_t leading = (!(PIND & _BV(2)) != !(PIND & _BV(3)));
             if (leading) {
-                delta_y -= MouseMoveAmount;
+                delta_y -= mouse_speed_x;
             } else {
-                delta_y += MouseMoveAmount;
+                delta_y += mouse_speed_y;
             }
         }
 
         if (mouse_quadrature_y_2_fired) {
             uint8_t leading = (!(PIND & _BV(2)) != !(PIND & _BV(3)));
             if (leading) {
-                delta_y += MouseMoveAmount;
+                delta_y += mouse_speed_x;
             } else {
-                delta_y -= MouseMoveAmount;
+                delta_y -= mouse_speed_y;
             }
         }
 
@@ -328,6 +363,17 @@ static void run(void) {
         }
 
         if (delta_x != 0 || delta_y != 0 || mouse_button_changed) {
+            if (delta_x != 0) {
+                if (mouse_cooldown_ticks_x < MouseCooldownHighSpeedCap - MouseCooldownMovementStep) {
+                    mouse_cooldown_ticks_x += MouseCooldownMovementStep;
+                }
+            }
+            if (delta_y != 0) {
+                if (mouse_cooldown_ticks_y < MouseCooldownHighSpeedCap - MouseCooldownMovementStep) {
+                    mouse_cooldown_ticks_y += MouseCooldownMovementStep;
+                }
+            }
+        
             usb_mouse_send(mouse_current_button, delta_x, delta_y);
         }
     }

@@ -45,7 +45,7 @@ void kb_setup(void) {
 
     EIMSK &= ~0x80; // disable int7 until required
 
-    _ticks_until_reset = (uint8_t)((uint16_t)500 / TVMillisPerTick);
+    _ticks_until_reset = (uint8_t)((uint16_t)500 / TVMillisPerTickTimer0);
 
     event_register_handler(EVENT_TYPE_TICK, _tick_handler, NULL);
 }
