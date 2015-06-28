@@ -1,4 +1,6 @@
 #include "timevalues.h"
+#include <avr/io.h>
+#include <avr/interrupt.h>
 
 // Timer 0 clock select (prescaling; controls TCCR0B[2:0] aka
 // CS0[2:0]).
@@ -12,5 +14,14 @@
 //   0x04; // clkIO/256 -> 244.14 Hz
 //   0x03; // clkIO/64 -> 976.6 Hz
 uint8_t const TVTimer0Overflow = 0x04;
-uint16_t const TVMillisPerTick = 4; // 1000 * 1 / 244.14 Hz
+uint16_t const TVMillisPerTickTimer0 = 4; // 1000 * 1 / 244.14 Hz
+
+
+uint16_t const TVMillisPerTickTimer1 = 1;
+
+void timer1_setup(void) {
+    TCCR1B = 0x05; // clkIO/1024 -> 15625 Hz
+
+    TCNT1 = 0;
+}
 
